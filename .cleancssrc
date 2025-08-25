@@ -1,0 +1,8 @@
+{
+    "format": {
+        "breaks": {
+            "afterComment": true
+        }
+    },
+    "inline": ["local"]
+}

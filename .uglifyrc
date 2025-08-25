@@ -1,0 +1,14 @@
+{
+    "output": {
+        "comments": "/(^!|@license|@preserve)/"
+    },
+    "sourceMap": false,
+    "ecma": 5,
+    "keep_classnames": false,
+    "keep_fnames": false,
+    "ie8": false,
+    "nameCache": null,
+    "safari10": false,
+    "toplevel": false,
+    "warnings": false
+}

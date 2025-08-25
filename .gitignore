@@ -1,0 +1,59 @@
+# folders and files to be ignored by git
+
+# RTD
+*/library/scss/.sass-cache
+*.sass-cache
+.stylelintcache
+*.stylelintcache
+.stylelintcache*
+
+# Packages
+node_modules
+
+# Bones
+Bones.esproj/
+
+# IDEs
+*.pydevproject
+.project
+.metadata
+*.swp
+*~.nib
+local.properties
+.classpath
+.settings/
+.loadpath
+.externalToolBuilders/
+*.launch
+.cproject
+.buildpath
+nbproject/
+
+# OSes
+[Tt]humbs.db
+[Dd]esktop.ini
+*.DS_store
+.DS_store?
+
+# Misc
+bin/
+tmp/
+*.tmp
+*.bak
+*.log
+*.[Cc]ache
+*.cpr
+*.orig
+*.php.in
+.idea/
+temp/
+._*
+.Trashes
+.svn
+*.codekit
+*.scssc
+
+# Project files
+*.sublime-project
+*.sublime-workspace
+#*.code-workspace # This is just a project path and (for us) SCSS settings

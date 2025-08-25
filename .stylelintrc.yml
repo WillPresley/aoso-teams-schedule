@@ -1,0 +1,81 @@
+# Stylelint (16+) Configuration - YAML format
+# Will Presley
+# https://stylelint.io/user-guide/configure/
+# Rules:
+#   - https://github.com/stylelint/stylelint-config-standard/blob/main/index.js
+#   - https://github.com/stylelint-scss/stylelint-config-standard-scss/blob/main/index.js
+# Last Modified: 2025/07/21 09:43:12
+
+plugins:
+    - stylelint-use-logical-spec
+    # - stylelint-order
+
+extends:
+    - stylelint-config-standard-scss
+    - stylelint-prettier/recommended
+    - stylelint-config-clean-order
+
+rules:
+    at-rule-no-unknown: null
+    liberty/use-logical-spec: ["always", { except: ["float"] }]
+    max-nesting-depth: 6
+    media-feature-range-notation: "prefix"
+    no-descending-specificity: null
+    no-invalid-position-at-import-rule:
+        - true
+        - ignoreAtRules:
+              - media
+    order/order:
+        - type: "at-rule"
+        - "custom-properties"
+        - "dollar-variables"
+        - "declarations"
+        - "rules"
+        - type: "at-rule"
+          name: "supports"
+          hasBlock: true
+        - type: "at-rule"
+          name: "media"
+          hasBlock: true
+        - type: "at-rule"
+          name: "include"
+          hasBlock: true
+        - type: "at-rule"
+          name: "if"
+          hasBlock: true
+        - type: "at-rule"
+          name: "else"
+          hasBlock: true
+        - type: "at-rule"
+          name: "return"
+          hasBlock: false
+    # order/properties-alphabetical-order: true
+    scss/at-else-closing-brace-space-after: "always-intermediate"
+    scss/at-else-empty-line-before: "never"
+    scss/at-else-if-parentheses-space-before: "always"
+    scss/at-rule-no-unknown: true
+    scss/dollar-variable-colon-space-after: "always-single-line"
+    scss/double-slash-comment-empty-line-before:
+        - "always"
+        - ignore:
+              - "between-comments"
+              - "stylelint-commands"
+              - "inside-block"
+    scss/no-duplicate-mixins: true
+    selector-class-pattern: null
+    selector-id-pattern: null
+    selector-max-compound-selectors: 5
+    selector-max-id: 1
+    selector-no-qualifying-type: null
+
+overrides:
+    - files:
+          - "**/editor-style.scss"
+          - "**/hamburgers/*.scss"
+      rules:
+          no-invalid-position-at-import-rule: null
+    - files:
+          - "**/_sb-instagram.scss"
+          - "**/_woo-buttons.scss"
+      rules:
+          selector-max-id: null
