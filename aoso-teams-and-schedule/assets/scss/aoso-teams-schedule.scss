@@ -1,6 +1,49 @@
 /* AOSO Teams & Schedule (starter styles)
    Focus: structure + class hooks — you’ll deepen the look in your theme SCSS. */
 
+@use "sass:math";
+@use "sass:color";
+
+/*********************
+COLORS
+*********************/
+// Black
+$black: #000;
+$black-light: color.adjust($black, $lightness: 12.5%);
+$black-lighter: color.adjust($black, $lightness: 25%);
+
+// White
+$white: #fff;
+$white-dark: color.adjust($white, $lightness: -3.5%);
+$white-darker: color.adjust($white, $lightness: -7%);
+
+// Green
+$aoso-green: #266041;
+$aoso-green-light: color.scale($aoso-green, $lightness: 10%);
+$aoso-green-dark: color.scale($aoso-green, $lightness: -10%);
+$aoso-green-faint: color.mix($aoso-green, $white, 50%);
+$aoso-green-pale: color.mix($aoso-green, $white, 20%);
+
+// Mid Green
+$aoso-mid-green: #4a9462;
+$aoso-mid-green-light: color.scale($aoso-mid-green, $lightness: 10%);
+$aoso-mid-green-dark: color.scale($aoso-mid-green, $lightness: -10%);
+$aoso-mid-green-faint: color.mix($aoso-mid-green, $white, 50%);
+$aoso-mid-green-pale: color.mix($aoso-mid-green, $white, 20%);
+
+// Pale Green
+$aoso-pale-green: #a1d683;
+$aoso-pale-green-light: color.scale($aoso-pale-green, $lightness: 10%);
+$aoso-pale-green-dark: color.scale($aoso-pale-green, $lightness: -10%);
+$aoso-pale-green-faint: color.mix($aoso-pale-green, $white, 50%);
+$aoso-pale-green-pale: color.mix($aoso-pale-green, $white, 20%);
+
+article.aoso_schedule {
+    .aoso-schedule__header {
+        display: none;
+    }
+}
+
 .aoso-schedule {
     --gap: 0.5rem;
 
@@ -13,6 +56,7 @@
         Roboto,
         Arial,
         sans-serif;
+    line-height: 1.1;
 }
 
 .aoso-schedule__header {
@@ -22,10 +66,8 @@
 
     padding-block: 0.5rem;
     padding-inline: 0.75rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 0.375rem;
 
-    background: #f1f5f9;
+    // background: #f1f5f9;
 }
 
 .aoso-schedule__title {
@@ -40,51 +82,65 @@
 
 .aoso-schedule__grid {
     display: grid;
-    gap: var(--gap);
-    margin-block-start: 0.5rem;
+    // gap: var(--gap);
+    margin-block: 0.5rem;
 }
 
 .aoso-schedule__grid-head,
 .aoso-schedule__grid-body > .aoso-schedule__row {
     display: grid;
-    grid-template-columns: 8rem repeat(3, 1fr); /* Time + 3 fields by default; grid still works if you add/remove columns */
+    grid-template-columns: 5rem repeat(3, 1fr); /* Time + 3 fields by default; grid still works if you add/remove columns */
     gap: var(--gap);
 }
 
-.aoso-schedule__cell {
-    padding: 0.5rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.375rem;
-    background: #fff;
-}
+// .aoso-schedule__cell {
+// padding: 0.5rem;
+// border: 1px solid #e2e8f0;
+// border-radius: 0.375rem;
+// background: #fff;
+// }
 
-.aoso-schedule__cell--head {
-    font-weight: 600;
-    background: #eef2ff;
-}
+// .aoso-schedule__cell--head {
+// font-weight: bold;
+// background: #eef2ff;
+// }
 
 .aoso-schedule__cell--time,
 .aoso-schedule__cell--time-key {
-    font-weight: 600;
     text-align: center;
-    background: #f8fafc;
+    // background: #f8fafc;
+}
+
+.aoso-schedule__cell--time {
+    margin-block-start: auto;
+}
+
+.aoso-schedule__cell--time-key {
+    margin-block: auto;
 }
 
 .aoso-schedule__field-head-inner {
     display: flex;
-    gap: 0.5rem;
+    flex-direction: column;
+    // gap: 0.5rem;
     align-items: center;
-    justify-content: space-between;
+    padding: 0.25rem;
+    // justify-content: space-between;
+}
+
+.aoso-schedule__hoa-wrap {
+    display: inline-block;
+    line-height: 1;
 }
 
 .aoso-schedule__hoa {
     font-size: 0.825rem;
-    opacity: 0.85;
+    opacity: 0.6;
 }
 
 .aoso-schedule__hoa--vs {
     margin-block: 0;
-    margin-inline: 0.25rem;
+    margin-inline: 0.2rem;
 }
 
 .aoso-match {
@@ -100,18 +156,22 @@
     padding-block: 0;
     padding-inline: 0.25rem;
 
-    opacity: 0.7;
+    opacity: 0.5;
 }
 
 .aoso-team {
     display: flex;
     gap: 0.4rem;
     align-items: center;
+    justify-content: center;
 
     min-block-size: 2.2rem;
-    padding-block: 0.35rem;
-    padding-inline: 0.45rem;
-    border-radius: 0.25rem;
+    padding-block: 1rem;
+    padding-inline: 0.3rem;
+    // border-radius: 0.25rem;
+
+    font-weight: bold;
+    text-align: center;
 }
 
 .aoso-team__logo {
@@ -122,4 +182,34 @@
 
 .aoso-team__name--tbd {
     opacity: 0.5;
+}
+
+.aoso-matchday__header {
+    padding-block: 0.5rem;
+    padding-inline: 0.75rem;
+    background-color: $aoso-pale-green;
+}
+
+.aoso-matchday__title {
+    margin: 0;
+    color: $black;
+    text-align: center;
+}
+
+.aoso-schedule__notice {
+    padding-block: 0.5rem;
+    padding-inline: 0.75rem;
+
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: $white;
+    text-align: center;
+
+    background-color: $aoso-mid-green;
+
+    p {
+        &:last-of-type {
+            margin-block-end: 0;
+        }
+    }
 }
