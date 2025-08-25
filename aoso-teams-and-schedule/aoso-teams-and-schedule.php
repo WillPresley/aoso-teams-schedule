@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  AOSO Teams and Schedule
  * Description:  Custom CPTs + ACF-powered builder for teams and matchday schedules with shortcode rendering.
- * Version:      0.1.0
+ * Version:      0.2.0
  * Author:       AOSO
  * License:      GPL-2.0-or-later
  *
@@ -13,230 +13,231 @@
  * Overview:
  * - CPT "Team" (slug: team) with taxonomy "Tier" (Rec, Flex, Comp) and ACF fields for colors and logo.
  * - CPT "Schedule" (slug: schedule) with ACF Date + a nested Repeater builder:
- *      Fields (3 by default) → Times (2 by default: 9:00, 10:30) → Home/Away team selectors.
+ * Fields (3 by default) → Times (2 by default: 9:00, 10:30) → Home/Away team selectors.
+ * - NEW: Option for "No match this week" with a custom message.
  * - Single schedule pages at /schedule/{post-name}.
  * - Shortcode [aoso_schedule slug="fall-2025-adult"] defaults to newest by ACF Date when slug missing.
  * - Clean, semantic HTML with sensible classes for styling; minimal CSS is expected from your SCSS.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit;
+    exit;
 }
 
 final class AOSO_Teams_Schedule {
 
-	/** Plugin constants (paths/urls). */
-	private const VERSION   = '0.1.0';
-	private const SLUG      = 'aoso-teams-and-schedule';
+    /** Plugin constants (paths/urls). */
+    private const VERSION   = '0.2.0';
+    private const SLUG      = 'aoso-teams-and-schedule';
 
-	public static function init() {
-		static $inst = null;
-		if ( null === $inst ) {
-			$inst = new self();
-		}
-		return $inst;
-	}
+    public static function init() {
+        static $inst = null;
+        if ( null === $inst ) {
+            $inst = new self();
+        }
+        return $inst;
+    }
 
-	private function __construct() {
-		// Register content types.
-		add_action( 'init', [ $this, 'register_team_cpt' ] );
-		add_action( 'init', [ $this, 'register_schedule_cpt' ] );
-		add_action( 'init', [ $this, 'register_tier_tax' ] );
+    private function __construct() {
+        // Register content types.
+        add_action( 'init', [ $this, 'register_team_cpt' ] );
+        add_action( 'init', [ $this, 'register_schedule_cpt' ] );
+        add_action( 'init', [ $this, 'register_tier_tax' ] );
 
-		// Ensure default Tier terms exist.
-		add_action( 'init', [ $this, 'maybe_seed_tier_terms' ] );
+        // Ensure default Tier terms exist.
+        add_action( 'init', [ $this, 'maybe_seed_tier_terms' ] );
 
-		// Flush rewrites on activation/deactivation when slugs change.
-		register_activation_hook( __FILE__, [ $this, 'activate' ] );
-		register_deactivation_hook( __FILE__, [ $this, 'deactivate' ] );
+        // Flush rewrites on activation/deactivation when slugs change.
+        register_activation_hook( __FILE__, [ $this, 'activate' ] );
+        register_deactivation_hook( __FILE__, [ $this, 'deactivate' ] );
 
-		// Assets (your SCSS compiles to the CSS path shown below).
-		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+        // Assets (your SCSS compiles to the CSS path shown below).
+        add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
-		// ACF field groups (requires ACF Pro).
-		add_action( 'acf/init', [ $this, 'register_acf_groups' ] );
+        // ACF field groups (requires ACF Pro).
+        add_action( 'acf/init', [ $this, 'register_acf_groups' ] );
 
-		// Prefill new Schedule builder with 3 fields × 2 times.
-		add_filter( 'acf/load_value/name=aoso_matchdays', [ $this, 'prefill_matchdays' ], 10, 3 );
+        // Prefill new Schedule builder with 3 fields × 2 times.
+        add_filter( 'acf/load_value/name=aoso_matchdays', [ $this, 'prefill_matchdays' ], 10, 3 );
         // add_action( 'acf/input/admin_enqueue_scripts', [ $this, 'enqueue_acf_admin_assets' ] ); // optional: JS to prefill on “Add Matchday”
 
-		// Shortcode for schedule rendering.
-		add_shortcode( 'aoso_schedule', [ $this, 'shortcode_schedule' ] );
+        // Shortcode for schedule rendering.
+        add_shortcode( 'aoso_schedule', [ $this, 'shortcode_schedule' ] );
 
-		// Replace single Schedule content with our rendered markup by default.
-		add_filter( 'the_content', [ $this, 'maybe_inject_schedule_into_content' ] );
-	}
+        // Replace single Schedule content with our rendered markup by default.
+        add_filter( 'the_content', [ $this, 'maybe_inject_schedule_into_content' ] );
+    }
 
-	/*--------------------------------------------------------------------------
-	 * Activation/Deactivation
-	 *------------------------------------------------------------------------*/
-	public function activate() {
-		$this->register_team_cpt();
-		$this->register_schedule_cpt();
-		$this->register_tier_tax();
-		$this->maybe_seed_tier_terms();
-		flush_rewrite_rules();
-	}
+    /*--------------------------------------------------------------------------
+     * Activation/Deactivation
+     *------------------------------------------------------------------------*/
+    public function activate() {
+        $this->register_team_cpt();
+        $this->register_schedule_cpt();
+        $this->register_tier_tax();
+        $this->maybe_seed_tier_terms();
+        flush_rewrite_rules();
+    }
 
-	public function deactivate() {
-		flush_rewrite_rules();
-	}
+    public function deactivate() {
+        flush_rewrite_rules();
+    }
 
-	/*--------------------------------------------------------------------------
-	 * CPT: Team
-	 *------------------------------------------------------------------------*/
-	public function register_team_cpt() {
-		$labels = [
-			'name'               => _x( 'Teams', 'post type general name', 'aoso' ),
-			'singular_name'      => _x( 'Team', 'post type singular name', 'aoso' ),
-			'menu_name'          => _x( 'Teams', 'admin menu', 'aoso' ),
-			'name_admin_bar'     => _x( 'Team', 'add new on admin bar', 'aoso' ),
-			'add_new'            => __( 'Add New', 'aoso' ),
-			'add_new_item'       => __( 'Add New Team', 'aoso' ),
-			'new_item'           => __( 'New Team', 'aoso' ),
-			'edit_item'          => __( 'Edit Team', 'aoso' ),
-			'view_item'          => __( 'View Team', 'aoso' ),
-			'all_items'          => __( 'All Teams', 'aoso' ),
-			'search_items'       => __( 'Search Teams', 'aoso' ),
-			'parent_item_colon'  => __( 'Parent Teams:', 'aoso' ),
-			'not_found'          => __( 'No teams found.', 'aoso' ),
-			'not_found_in_trash' => __( 'No teams found in Trash.', 'aoso' ),
-		];
+    /*--------------------------------------------------------------------------
+     * CPT: Team
+     *------------------------------------------------------------------------*/
+    public function register_team_cpt() {
+        $labels = [
+            'name'               => _x( 'Teams', 'post type general name', 'aoso' ),
+            'singular_name'      => _x( 'Team', 'post type singular name', 'aoso' ),
+            'menu_name'          => _x( 'Teams', 'admin menu', 'aoso' ),
+            'name_admin_bar'     => _x( 'Team', 'add new on admin bar', 'aoso' ),
+            'add_new'            => __( 'Add New', 'aoso' ),
+            'add_new_item'       => __( 'Add New Team', 'aoso' ),
+            'new_item'           => __( 'New Team', 'aoso' ),
+            'edit_item'          => __( 'Edit Team', 'aoso' ),
+            'view_item'          => __( 'View Team', 'aoso' ),
+            'all_items'          => __( 'All Teams', 'aoso' ),
+            'search_items'       => __( 'Search Teams', 'aoso' ),
+            'parent_item_colon'  => __( 'Parent Teams:', 'aoso' ),
+            'not_found'          => __( 'No teams found.', 'aoso' ),
+            'not_found_in_trash' => __( 'No teams found in Trash.', 'aoso' ),
+        ];
 
-		register_post_type( 'aoso_team', [
-			'labels'             => $labels,
-			'public'             => true,
-			'show_in_rest'       => true,
-			'menu_icon'          => 'dashicons-groups',
-			'supports'           => [ 'title', 'thumbnail' ],
-			'has_archive'        => false,
-			'rewrite'            => [ 'slug' => 'team', 'with_front' => false ],
-		] );
-	}
+        register_post_type( 'aoso_team', [
+            'labels'        => $labels,
+            'public'        => true,
+            'show_in_rest'  => true,
+            'menu_icon'     => 'dashicons-groups',
+            'supports'      => [ 'title', 'thumbnail' ],
+            'has_archive'   => false,
+            'rewrite'       => [ 'slug' => 'team', 'with_front' => false ],
+        ] );
+    }
 
-	/*--------------------------------------------------------------------------
-	 * Taxonomy: Tier (Rec, Flex, Comp)
-	 *------------------------------------------------------------------------*/
-	public function register_tier_tax() {
-		$labels = [
-			'name'              => _x( 'Tiers', 'taxonomy general name', 'aoso' ),
-			'singular_name'     => _x( 'Tier', 'taxonomy singular name', 'aoso' ),
-			'search_items'      => __( 'Search Tiers', 'aoso' ),
-			'all_items'         => __( 'All Tiers', 'aoso' ),
-			'edit_item'         => __( 'Edit Tier', 'aoso' ),
-			'update_item'       => __( 'Update Tier', 'aoso' ),
-			'add_new_item'      => __( 'Add New Tier', 'aoso' ),
-			'new_item_name'     => __( 'New Tier Name', 'aoso' ),
-			'menu_name'         => __( 'Tiers', 'aoso' ),
-		];
+    /*--------------------------------------------------------------------------
+     * Taxonomy: Tier (Rec, Flex, Comp)
+     *------------------------------------------------------------------------*/
+    public function register_tier_tax() {
+        $labels = [
+            'name'          => _x( 'Tiers', 'taxonomy general name', 'aoso' ),
+            'singular_name' => _x( 'Tier', 'taxonomy singular name', 'aoso' ),
+            'search_items'  => __( 'Search Tiers', 'aoso' ),
+            'all_items'     => __( 'All Tiers', 'aoso' ),
+            'edit_item'     => __( 'Edit Tier', 'aoso' ),
+            'update_item'   => __( 'Update Tier', 'aoso' ),
+            'add_new_item'  => __( 'Add New Tier', 'aoso' ),
+            'new_item_name' => __( 'New Tier Name', 'aoso' ),
+            'menu_name'     => __( 'Tiers', 'aoso' ),
+        ];
 
-		register_taxonomy( 'aoso_tier', [ 'aoso_team' ], [
-			'labels'        => $labels,
-			'hierarchical'  => false,
-			'show_in_rest'  => true,
-			'show_admin_column' => true,
-			'rewrite'       => [ 'slug' => 'tier', 'with_front' => false ],
-		] );
-	}
+        register_taxonomy( 'aoso_tier', [ 'aoso_team' ], [
+            'labels'            => $labels,
+            'hierarchical'      => false,
+            'show_in_rest'      => true,
+            'show_admin_column' => true,
+            'rewrite'           => [ 'slug' => 'tier', 'with_front' => false ],
+        ] );
+    }
 
-	public function maybe_seed_tier_terms() {
-		$defaults = [ 'Rec', 'Flex', 'Comp' ];
-		foreach ( $defaults as $term ) {
-			if ( ! term_exists( $term, 'aoso_tier' ) ) {
-				wp_insert_term( $term, 'aoso_tier' );
-			}
-		}
-	}
+    public function maybe_seed_tier_terms() {
+        $defaults = [ 'Rec', 'Flex', 'Comp' ];
+        foreach ( $defaults as $term ) {
+            if ( ! term_exists( $term, 'aoso_tier' ) ) {
+                wp_insert_term( $term, 'aoso_tier' );
+            }
+        }
+    }
 
-	/*--------------------------------------------------------------------------
-	 * CPT: Schedule
-	 *------------------------------------------------------------------------*/
-	public function register_schedule_cpt() {
-		$labels = [
-			'name'               => _x( 'Schedules', 'post type general name', 'aoso' ),
-			'singular_name'      => _x( 'Schedule', 'post type singular name', 'aoso' ),
-			'menu_name'          => _x( 'Schedules', 'admin menu', 'aoso' ),
-			'name_admin_bar'     => _x( 'Schedule', 'add new on admin bar', 'aoso' ),
-			'add_new'            => __( 'Add New', 'aoso' ),
-			'add_new_item'       => __( 'Add New Schedule', 'aoso' ),
-			'new_item'           => __( 'New Schedule', 'aoso' ),
-			'edit_item'          => __( 'Edit Schedule', 'aoso' ),
-			'view_item'          => __( 'View Schedule', 'aoso' ),
-			'all_items'          => __( 'All Schedules', 'aoso' ),
-			'search_items'       => __( 'Search Schedules', 'aoso' ),
-			'not_found'          => __( 'No schedules found.', 'aoso' ),
-		];
+    /*--------------------------------------------------------------------------
+     * CPT: Schedule
+     *------------------------------------------------------------------------*/
+    public function register_schedule_cpt() {
+        $labels = [
+            'name'           => _x( 'Schedules', 'post type general name', 'aoso' ),
+            'singular_name'  => _x( 'Schedule', 'post type singular name', 'aoso' ),
+            'menu_name'      => _x( 'Schedules', 'admin menu', 'aoso' ),
+            'name_admin_bar' => _x( 'Schedule', 'add new on admin bar', 'aoso' ),
+            'add_new'        => __( 'Add New', 'aoso' ),
+            'add_new_item'   => __( 'Add New Schedule', 'aoso' ),
+            'new_item'       => __( 'New Schedule', 'aoso' ),
+            'edit_item'      => __( 'Edit Schedule', 'aoso' ),
+            'view_item'      => __( 'View Schedule', 'aoso' ),
+            'all_items'      => __( 'All Schedules', 'aoso' ),
+            'search_items'   => __( 'Search Schedules', 'aoso' ),
+            'not_found'      => __( 'No schedules found.', 'aoso' ),
+        ];
 
-		register_post_type( 'aoso_schedule', [
-			'labels'             => $labels,
-			'public'             => true,
-			'show_in_rest'       => true,
-			'menu_icon'          => 'dashicons-calendar-alt',
-			'supports'           => [ 'title' ],
-			'has_archive'        => false,
-			'rewrite'            => [ 'slug' => 'schedule', 'with_front' => false ],
-		] );
-	}
+        register_post_type( 'aoso_schedule', [
+            'labels'        => $labels,
+            'public'        => true,
+            'show_in_rest'  => true,
+            'menu_icon'     => 'dashicons-calendar-alt',
+            'supports'      => [ 'title' ],
+            'has_archive'   => false,
+            'rewrite'       => [ 'slug' => 'schedule', 'with_front' => false ],
+        ] );
+    }
 
-	/*--------------------------------------------------------------------------
-	 * Assets
-	 *------------------------------------------------------------------------*/
-	public function enqueue_assets() {
-		$css_path = plugin_dir_url( __FILE__ ) . 'assets/css/aoso-teams-schedule.min.css';
-		wp_register_style( 'aoso-teams-schedule', $css_path, [], self::VERSION, 'all' );
-		// We only enqueue when we detect either shortcode output or single schedule page.
-	}
+    /*--------------------------------------------------------------------------
+     * Assets
+     *------------------------------------------------------------------------*/
+    public function enqueue_assets() {
+        $css_path = plugin_dir_url( __FILE__ ) . 'assets/css/aoso-teams-schedule.min.css';
+        wp_register_style( 'aoso-teams-schedule', $css_path, [], self::VERSION, 'all' );
+        // We only enqueue when we detect either shortcode output or single schedule page.
+    }
 
-	/*--------------------------------------------------------------------------
-	 * ACF Field Groups
-	 *------------------------------------------------------------------------*/
-	public function register_acf_groups() {
-		if ( ! function_exists( 'acf_add_local_field_group' ) ) {
-			return;
-		}
+    /*--------------------------------------------------------------------------
+     * ACF Field Groups
+     *------------------------------------------------------------------------*/
+    public function register_acf_groups() {
+        if ( ! function_exists( 'acf_add_local_field_group' ) ) {
+            return;
+        }
 
-		// TEAM fields: bg color, text color, logo (SVG/PNG).
-		acf_add_local_field_group( [
-			'key'    => 'group_aoso_team_fields',
-			'title'  => 'Team Details',
-			'fields' => [
-				[
-					'key'           => 'field_aoso_team_bg',
-					'label'         => 'Background Color',
-					'name'          => 'aoso_team_bg',
-					'type'          => 'color_picker',
-					'return_format' => 'string',
-				],
-				[
-					'key'           => 'field_aoso_team_text',
-					'label'         => 'Text Color',
-					'name'          => 'aoso_team_text',
-					'type'          => 'color_picker',
-					'return_format' => 'string',
-				],
-				[
-					'key'           => 'field_aoso_team_logo',
-					'label'         => 'Logo (SVG/PNG)',
-					'name'          => 'aoso_team_logo',
-					'type'          => 'image',
-					'return_format' => 'array',
-					'library'       => 'all',
-					'mime_types'    => 'svg,png',
-					'preview_size'  => 'medium',
-				],
-			],
-			'location' => [
-				[
-					[
-						'param'    => 'post_type',
-						'operator' => '==',
-						'value'    => 'aoso_team',
-					],
-				],
-			],
-		] );
+        // TEAM fields: bg color, text color, logo (SVG/PNG).
+        acf_add_local_field_group( [
+            'key'    => 'group_aoso_team_fields',
+            'title'  => 'Team Details',
+            'fields' => [
+                [
+                    'key'           => 'field_aoso_team_bg',
+                    'label'         => 'Background Color',
+                    'name'          => 'aoso_team_bg',
+                    'type'          => 'color_picker',
+                    'return_format' => 'string',
+                ],
+                [
+                    'key'           => 'field_aoso_team_text',
+                    'label'         => 'Text Color',
+                    'name'          => 'aoso_team_text',
+                    'type'          => 'color_picker',
+                    'return_format' => 'string',
+                ],
+                [
+                    'key'           => 'field_aoso_team_logo',
+                    'label'         => 'Logo (SVG/PNG)',
+                    'name'          => 'aoso_team_logo',
+                    'type'          => 'image',
+                    'return_format' => 'array',
+                    'library'       => 'all',
+                    'mime_types'    => 'svg,png',
+                    'preview_size'  => 'medium',
+                ],
+            ],
+            'location' => [
+                [
+                    [
+                        'param'    => 'post_type',
+                        'operator' => '==',
+                        'value'    => 'aoso_team',
+                    ],
+                ],
+            ],
+        ] );
 
-		// SCHEDULE fields: multiple matchdays → each has date + 3 fixed fields → each field has times (home/away).
+        // SCHEDULE fields: multiple matchdays → each has date + 3 fixed fields → each field has times (home/away).
         acf_add_local_field_group( [
             'key'    => 'group_aoso_schedule_fields',
             'title'  => 'Schedule Builder',
@@ -249,26 +250,71 @@ final class AOSO_Teams_Schedule {
                     'layout'       => 'row',
                     'button_label' => 'Add Matchday',
                     'sub_fields'   => [
+                        // START MODIFICATION: Added "No Match" fields and conditional logic.
                         [
-                            'key'           => 'field_aoso_match_date',
-                            'label'         => 'Matchday Date',
-                            'name'          => 'match_date',
-                            'type'          => 'date_picker',
-                            'display_format'=> 'F j, Y',
-                            'return_format' => 'Ymd',
-                            'first_day'     => 0,
-                            'required'      => 1,
+                            'key'         => 'field_aoso_no_match',
+                            'label'       => 'No match this week',
+                            'name'        => 'no_match',
+                            'type'        => 'true_false',
+                            'ui'          => 1,
+                            'ui_on_text'  => 'Yes',
+                            'ui_off_text' => 'No',
                         ],
                         [
-                            'key'          => 'field_aoso_md_fields',
-                            'label'        => 'Fields',
-                            'name'         => 'fields',
-                            'type'         => 'repeater',
-                            'layout'       => 'row',
-                            'min'          => 3,
-                            'max'          => 3, // we’ll keep it to 3; you can change later.
-                            'button_label' => 'Add Field',
-                            'sub_fields'   => [
+                            'key'               => 'field_aoso_no_match_message',
+                            'label'             => 'Custom Message',
+                            'name'              => 'no_match_message',
+                            'type'              => 'text',
+                            'placeholder'       => 'No matches scheduled this week.',
+                            'conditional_logic' => [
+                                [
+                                    [
+                                        'field'    => 'field_aoso_no_match',
+                                        'operator' => '==',
+                                        'value'    => '1',
+                                    ],
+                                ],
+                            ],
+                        ],
+                        [
+                            'key'               => 'field_aoso_match_date',
+                            'label'             => 'Matchday Date',
+                            'name'              => 'match_date',
+                            'type'              => 'date_picker',
+                            'display_format'    => 'F j, Y',
+                            'return_format'     => 'Ymd',
+                            'first_day'         => 0,
+                            'required'          => 1,
+                            'conditional_logic' => [
+                                [
+                                    [
+                                        'field'    => 'field_aoso_no_match',
+                                        'operator' => '!=',
+                                        'value'    => '1',
+                                    ],
+                                ],
+                            ],
+                        ],
+                        [
+                            'key'               => 'field_aoso_md_fields',
+                            'label'             => 'Fields',
+                            'name'              => 'fields',
+                            'type'              => 'repeater',
+                            'layout'            => 'row',
+                            'min'               => 3,
+                            'max'               => 3,
+                            'button_label'      => 'Add Field',
+                            'conditional_logic' => [
+                                [
+                                    [
+                                        'field'    => 'field_aoso_no_match',
+                                        'operator' => '!=',
+                                        'value'    => '1',
+                                    ],
+                                ],
+                            ],
+                            // END MODIFICATION
+                            'sub_fields'        => [
                                 [
                                     'key'   => 'field_aoso_md_field_name',
                                     'label' => 'Field Name',
@@ -291,10 +337,10 @@ final class AOSO_Teams_Schedule {
                                     'button_label' => 'Add Time',
                                     'sub_fields'   => [
                                         [
-                                            'key'   => 'field_aoso_md_time_label',
-                                            'label' => 'Time',
-                                            'name'  => 'time_label',
-                                            'type'  => 'text',
+                                            'key'         => 'field_aoso_md_time_label',
+                                            'label'       => 'Time',
+                                            'name'        => 'time_label',
+                                            'type'        => 'text',
                                             'placeholder' => '9:00',
                                         ],
                                         [
@@ -334,9 +380,9 @@ final class AOSO_Teams_Schedule {
                 ],
             ],
         ] );
-	}
+    }
 
-	/**
+    /**
      * Prefill a new Schedule with 1 Matchday → 3 Fields (named & colored) → 2 default times.
      * Runs only when the field has no saved value yet.
      */
@@ -366,8 +412,12 @@ final class AOSO_Teams_Schedule {
         // One empty matchday (date left blank on purpose).
         return [
             [
-                'match_date' => '',
-                'fields'     => $fields,
+                // START MODIFICATION: Added default values for the new fields.
+                'no_match'         => 0,
+                'no_match_message' => '',
+                // END MODIFICATION
+                'match_date'       => '',
+                'fields'           => $fields,
             ],
         ];
     }
@@ -417,15 +467,15 @@ final class AOSO_Teams_Schedule {
         return date_i18n( 'F j, Y', strtotime( $ymd ) );
     }
 
-	/*--------------------------------------------------------------------------
-	 * Rendering
-	 *------------------------------------------------------------------------*/
+    /*--------------------------------------------------------------------------
+     * Rendering
+     *------------------------------------------------------------------------*/
 
-	/**
-	 * Shortcode handler: [aoso_schedule slug="fall-2025-adult"]
-	 * - slug optional; when missing we pick the most recent by ACF Date, then by publish date.
-	 */
-	public function shortcode_schedule( $atts ) {
+    /**
+     * Shortcode handler: [aoso_schedule slug="fall-2025-adult"]
+     * - slug optional; when missing we pick the most recent by ACF Date, then by publish date.
+     */
+    public function shortcode_schedule( $atts ) {
         $atts = shortcode_atts( [
             'slug' => '',
             'date' => '', // Optional: pick a specific matchday (YYYYMMDD or YYYY-MM-DD)
@@ -446,10 +496,10 @@ final class AOSO_Teams_Schedule {
         return $this->render_schedule_html( $post->ID, $matchday );
     }
 
-	/**
-	 * If we’re on a single aoso_schedule view, replace content with the rendered grid.
-	 */
-	public function maybe_inject_schedule_into_content( $content ) {
+    /**
+     * If we’re on a single aoso_schedule view, replace content with the rendered grid.
+     */
+    public function maybe_inject_schedule_into_content( $content ) {
         if ( is_singular( 'aoso_schedule' ) && in_the_loop() && is_main_query() ) {
             wp_enqueue_style( 'aoso-teams-schedule' );
             $matchday = $this->pick_matchday( get_the_ID(), '' ); // newest by default
@@ -460,10 +510,10 @@ final class AOSO_Teams_Schedule {
         return $content;
     }
 
-	/**
-	 * Resolve a schedule post either by slug or by newest ACF date.
-	 */
-	private function resolve_schedule_post( $slug ) {
+    /**
+     * Resolve a schedule post either by slug or by newest ACF date.
+     */
+    private function resolve_schedule_post( $slug ) {
         if ( $slug ) {
             $by_slug = get_page_by_path( sanitize_title( $slug ), OBJECT, 'aoso_schedule' );
             if ( $by_slug instanceof WP_Post ) {
@@ -482,19 +532,11 @@ final class AOSO_Teams_Schedule {
         return $q->have_posts() ? $q->posts[0] : null;
     }
 
-	/**
-	 * Build the schedule markup as semantic HTML.
-	 * Class names are intentionally descriptive for SCSS hooks.
-	 */
+    /**
+     * Build the schedule markup as semantic HTML.
+     * Class names are intentionally descriptive for SCSS hooks.
+     */
     private function render_schedule_html( $schedule_id, $matchday ) {
-        $date_raw = $matchday['match_date'] ?? '';
-        $date_out = $this->human_date_from_ymd( $date_raw );
-
-        $fields = $matchday['fields'] ?? [];
-        if ( empty( $fields ) || ! is_array( $fields ) ) {
-            return '';
-        }
-
         ob_start();
         ?>
         <section class="aoso-schedule" aria-labelledby="aoso-schedule-title-<?php echo esc_attr( $schedule_id ); ?>">
@@ -502,8 +544,40 @@ final class AOSO_Teams_Schedule {
                 <h2 id="aoso-schedule-title-<?php echo esc_attr( $schedule_id ); ?>" class="aoso-schedule__title">
                     <?php echo esc_html( get_the_title( $schedule_id ) ); ?>
                 </h2>
-                <p class="aoso-schedule__date"><?php echo esc_html( $date_out ); ?></p>
+                <?php
+                // START MODIFICATION: Check for "No Match" before rendering the rest.
+                if ( ! empty( $matchday['no_match'] ) ) :
+                    $message = ! empty( $matchday['no_match_message'] )
+                        ? $matchday['no_match_message']
+                        : 'No matches scheduled for this week.'; // A sensible fallback.
+                    ?>
             </header>
+            <div class="aoso-schedule__notice" role="alert">
+                <p><?php echo esc_html( $message ); ?></p>
+            </div>
+        </section>
+                    <?php
+                    return (string) ob_get_clean();
+                endif;
+
+                // If we're here, it's a regular matchday. Continue with original logic.
+                $date_raw = $matchday['match_date'] ?? '';
+                $date_out = $this->human_date_from_ymd( $date_raw );
+                $fields   = $matchday['fields'] ?? [];
+
+                if ( $date_out ) :
+                ?>
+                <p class="aoso-schedule__date"><?php echo esc_html( $date_out ); ?></p>
+                <?php endif; ?>
+            </header>
+
+            <?php
+            if ( empty( $fields ) || ! is_array( $fields ) ) {
+                // Close the section and return if there are no fields for some reason.
+                echo '</section>';
+                return (string) ob_get_clean();
+            }
+            ?>
 
             <div class="aoso-schedule__grid" role="table" aria-label="<?php echo esc_attr( get_the_title( $schedule_id ) ); ?>">
                 <div class="aoso-schedule__grid-head" role="rowgroup">
@@ -574,69 +648,70 @@ final class AOSO_Teams_Schedule {
         <?php
         return (string) ob_get_clean();
     }
+    // END MODIFICATION
 
-	/**
-	 * Render one cell containing the Home vs Away teams for a given field/time.
-	 * Pulls team colors if set; otherwise leaves to theme styles.
-	 */
-	private function render_match_cell( $home_id, $away_id ) {
-		$home = $this->format_team_bits( $home_id );
-		$away = $this->format_team_bits( $away_id );
+    /**
+     * Render one cell containing the Home vs Away teams for a given field/time.
+     * Pulls team colors if set; otherwise leaves to theme styles.
+     */
+    private function render_match_cell( $home_id, $away_id ) {
+        $home = $this->format_team_bits( $home_id );
+        $away = $this->format_team_bits( $away_id );
 
-		ob_start();
-		?>
-		<div class="aoso-schedule__cell aoso-schedule__cell--match" role="cell">
-			<div class="aoso-match">
-				<div class="aoso-team aoso-team--home" style="<?php echo esc_attr( $home['style'] ); ?>">
-					<?php echo $home['html']; ?>
-				</div>
-				<div class="aoso-vs" aria-hidden="true">vs</div>
-				<div class="aoso-team aoso-team--away" style="<?php echo esc_attr( $away['style'] ); ?>">
-					<?php echo $away['html']; ?>
-				</div>
-			</div>
-		</div>
-		<?php
-		return ob_get_clean();
-	}
+        ob_start();
+        ?>
+        <div class="aoso-schedule__cell aoso-schedule__cell--match" role="cell">
+            <div class="aoso-match">
+                <div class="aoso-team aoso-team--home" style="<?php echo esc_attr( $home['style'] ); ?>">
+                    <?php echo $home['html']; ?>
+                </div>
+                <div class="aoso-vs" aria-hidden="true">vs</div>
+                <div class="aoso-team aoso-team--away" style="<?php echo esc_attr( $away['style'] ); ?>">
+                    <?php echo $away['html']; ?>
+                </div>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
 
-	/**
-	 * Prepare team small badge (logo + name) and inline colors if available.
-	 */
-	private function format_team_bits( $team_id ) {
-		// When no team selected yet, return a placeholder.
-		if ( ! $team_id ) {
-			return [
-				'html'  => '<span class="aoso-team__name aoso-team__name--tbd">—</span>',
-				'style' => '',
-			];
-		}
+    /**
+     * Prepare team small badge (logo + name) and inline colors if available.
+     */
+    private function format_team_bits( $team_id ) {
+        // When no team selected yet, return a placeholder.
+        if ( ! $team_id ) {
+            return [
+                'html'  => '<span class="aoso-team__name aoso-team__name--tbd">—</span>',
+                'style' => '',
+            ];
+        }
 
-		$title = get_the_title( $team_id );
-		$bg    = (string) get_field( 'aoso_team_bg', $team_id );
-		$text  = (string) get_field( 'aoso_team_text', $team_id );
-		$logo  = get_field( 'aoso_team_logo', $team_id );
+        $title = get_the_title( $team_id );
+        $bg    = (string) get_field( 'aoso_team_bg', $team_id );
+        $text  = (string) get_field( 'aoso_team_text', $team_id );
+        $logo  = get_field( 'aoso_team_logo', $team_id );
 
-		$style = [];
-		if ( $bg )   { $style[] = 'background-color:' . sanitize_hex_color( $bg ); }
-		if ( $text ) { $style[] = 'color:' . sanitize_hex_color( $text ); }
+        $style = [];
+        if ( $bg )   { $style[] = 'background-color:' . sanitize_hex_color( $bg ); }
+        if ( $text ) { $style[] = 'color:' . sanitize_hex_color( $text ); }
 
-		$logo_html = '';
-		if ( is_array( $logo ) && ! empty( $logo['url'] ) ) {
-			$logo_html = sprintf(
-				'<img class="aoso-team__logo" src="%s" alt="%s" loading="lazy" decoding="async" />',
-				esc_url( $logo['url'] ),
-				esc_attr( $title )
-			);
-		}
+        $logo_html = '';
+        if ( is_array( $logo ) && ! empty( $logo['url'] ) ) {
+            $logo_html = sprintf(
+                '<img class="aoso-team__logo" src="%s" alt="%s" loading="lazy" decoding="async" />',
+                esc_url( $logo['url'] ),
+                esc_attr( $title )
+            );
+        }
 
-		$name_html = '<span class="aoso-team__name">' . esc_html( $title ) . '</span>';
+        $name_html = '<span class="aoso-team__name">' . esc_html( $title ) . '</span>';
 
-		return [
-			'html'  => $logo_html . $name_html,
-			'style' => implode( ';', $style ),
-		];
-	}
+        return [
+            'html'  => $logo_html . $name_html,
+            'style' => implode( ';', $style ),
+        ];
+    }
 }
 
 AOSO_Teams_Schedule::init();
