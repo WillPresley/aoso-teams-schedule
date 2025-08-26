@@ -365,6 +365,10 @@ article.aoso_schedule {
         grid-template-columns: 5rem repeat(3, 1fr);
     }
 
+    .aoso-schedule__hoa-wrap {
+        font-size: 0.9rem;
+    }
+
     .aoso-schedule__hoa--home,
     .aoso-schedule__hoa--away {
         min-inline-size: 45px;
