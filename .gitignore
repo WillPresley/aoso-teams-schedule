@@ -54,6 +54,4 @@ temp/
 *.scssc
 
 # Project files
-*.sublime-project
-*.sublime-workspace
 *.code-workspace
