@@ -238,7 +238,7 @@ final class AOSO_Teams_Schedule {
                 <?php if ( $date_out ) :
                     $date_text = esc_html( $date_out );
                 endif; ?>
-                <h3 class="aoso-matchday__title"><?php echo $date_text; ?> (Matchday #<?php echo esc_html( $week_number ); ?>)</h3>
+                <h3 class="aoso-matchday__title"><span class="aoso-matchday__title-date"><?php echo $date_text; ?></span> <span class="aoso-matchday__title-label">(Matchday #<?php echo esc_html( $week_number ); ?>)</span></h3>
             </header>
 
             <?php

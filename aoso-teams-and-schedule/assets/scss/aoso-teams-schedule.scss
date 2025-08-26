@@ -38,6 +38,69 @@ $aoso-pale-green-dark: color.scale($aoso-pale-green, $lightness: -10%);
 $aoso-pale-green-faint: color.mix($aoso-pale-green, $white, 50%);
 $aoso-pale-green-pale: color.mix($aoso-pale-green, $white, 20%);
 
+/*********************
+VARIABLES
+*********************/
+$default-subtle-opacity: 0.5;
+
+/*********************
+FLUID SIZING
+*********************/
+// Based on: https://archive.ph/fAimJ
+// Clamp support: https://caniuse.com/?search=clamp()
+$default-min-bp: 360px;
+$default-max-bp: 900px;
+
+@function custom-round($number, $decimals: 2) {
+    $n: 1;
+
+    @if $decimals > 0 {
+        @for $i from 1 through $decimals {
+            $n: $n * 10;
+        }
+    }
+
+    @return math.div(math.round($number * $n), $n);
+}
+
+@function px-to-rem($px) {
+    $rems: math.div($px, 16px) * 1rem;
+
+    @return $rems;
+}
+
+/**
+ * Function: fluid
+ * Description: Generates a fluid value between two breakpoints using specified units.
+ * Parameters:
+ *   $min-size - The minimum size of the fluid value.
+ *   $max-size - The maximum size of the fluid value.
+ *   $min-breakpoint - The minimum viewport breakpoint. Defaults to $default-min-bp.
+ *   $max-breakpoint - The maximum viewport breakpoint. Defaults to $default-max-bp.
+ *   $unit - The unit for the fluid value. Defaults to vw.
+ * Returns:
+ *   A fluid value between $min-size and $max-size based on viewport width.
+ */
+@function fluid($min-size, $max-size, $min-breakpoint: $default-min-bp, $max-breakpoint: $default-max-bp, $unit: vw) {
+    // Calculate slope of the linear equation.
+    $slope: math.div($max-size - $min-size, $max-breakpoint - $min-breakpoint);
+    // Convert slope to specified unit.
+    $slope-to-unit: custom-round($slope * 100, 2);
+    // Calculate intercept in rem.
+    $intercept-rem: custom-round(px-to-rem($min-size - $slope * $min-breakpoint), 2);
+    // Convert minimum size to rem.
+    $min-size-rem: custom-round(px-to-rem($min-size), 2);
+    // Convert maximum size to rem.
+    $max-size-rem: custom-round(px-to-rem($max-size), 2);
+
+    /* prettier-ignore */
+    @return clamp( #{$min-size-rem}, #{$slope-to-unit}#{$unit} + #{$intercept-rem}, #{$max-size-rem} );
+}
+
+/*********************
+STYLES
+*********************/
+
 body.single-aoso_schedule {
     .standard-wrap {
         inline-size: 98vw;
@@ -79,11 +142,6 @@ article.aoso_schedule {
 .aoso-schedule__title {
     margin: 0;
     font-size: 1.125rem;
-}
-
-.aoso-schedule__date {
-    margin: 0;
-    opacity: 0.8;
 }
 
 .aoso-schedule__grid {
@@ -139,11 +197,26 @@ article.aoso_schedule {
 .aoso-schedule__hoa-wrap {
     display: inline-block;
     line-height: 1;
+    opacity: $default-subtle-opacity;
 }
 
-.aoso-schedule__hoa {
-    font-size: 0.825rem;
-    opacity: 0.6;
+// .aoso-schedule__hoa {
+// font-size: 0.825rem;
+// opacity: $default-subtle-opacity;
+// }
+
+.aoso-schedule__hoa--home,
+.aoso-schedule__hoa--away {
+    display: inline-block;
+    min-inline-size: 36px;
+}
+
+.aoso-schedule__hoa--home {
+    text-align: end;
+}
+
+.aoso-schedule__hoa--away {
+    text-align: start;
 }
 
 .aoso-schedule__hoa--vs {
@@ -167,7 +240,7 @@ article.aoso_schedule {
 
     font-size: 0.65rem;
 
-    opacity: 0.5;
+    opacity: $default-subtle-opacity;
 }
 
 .aoso-team {
@@ -198,7 +271,7 @@ article.aoso_schedule {
 }
 
 .aoso-team__name--tbd {
-    opacity: 0.5;
+    opacity: $default-subtle-opacity;
 }
 
 .aoso-matchday__header {
@@ -209,8 +282,15 @@ article.aoso_schedule {
 
 .aoso-matchday__title {
     margin: 0;
+
+    font-size: fluid(18px, 28px);
+    line-height: 1.15;
     color: $black;
     text-align: center;
+}
+
+.aoso-matchday__title-label {
+    opacity: $default-subtle-opacity;
 }
 
 .aoso-schedule__notice {
@@ -283,6 +363,11 @@ article.aoso_schedule {
     .aoso-schedule__grid-head,
     .aoso-schedule__grid-body > .aoso-schedule__row {
         grid-template-columns: 5rem repeat(3, 1fr);
+    }
+
+    .aoso-schedule__hoa--home,
+    .aoso-schedule__hoa--away {
+        min-inline-size: 45px;
     }
 
     .aoso-match {
