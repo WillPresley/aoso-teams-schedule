@@ -184,8 +184,10 @@ article.aoso_schedule {
     font-weight: bold;
     hyphens: auto;
     text-align: center;
-    word-break: break-word;
-    overflow-wrap: break-word;
+    // word-break: break-word;
+    word-break: normal;
+    overflow-wrap: anywhere;
+    // overflow-wrap: break-word;
     // word-wrap: break-word;
 }
 
