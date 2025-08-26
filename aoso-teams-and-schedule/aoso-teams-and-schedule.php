@@ -154,11 +154,13 @@ final class AOSO_Teams_Schedule {
      *------------------------------------------------------------------------*/
 
     /**
-     * Shortcode handler: [aoso_schedule slug="fall-2025-adult"]
-     * Now renders the entire schedule for the given slug.
+     * Shortcode handler: [aoso_schedule slug="fall-2025-adult" hide_old="false"]
      */
     public function shortcode_schedule( $atts ) {
-        $atts = shortcode_atts( [ 'slug' => '' ], $atts, 'aoso_schedule' );
+        $atts = shortcode_atts( [
+            'slug'     => '',
+            'hide_old' => 'false',
+        ], $atts, 'aoso_schedule' );
 
         $post = $this->resolve_schedule_post( $atts['slug'] );
         if ( ! $post ) {
@@ -172,7 +174,9 @@ final class AOSO_Teams_Schedule {
             return '';
         }
 
-        return $this->render_full_schedule_html( $post->ID, $all_matchdays );
+        $hide_old = filter_var( $atts['hide_old'], FILTER_VALIDATE_BOOLEAN );
+
+        return $this->render_full_schedule_html( $post->ID, $all_matchdays, $hide_old );
     }
 
     /**
@@ -206,8 +210,29 @@ final class AOSO_Teams_Schedule {
 
     /**
      * Build the wrapper and loop through all matchdays.
+     *
+     * @param int   $schedule_id
+     * @param array $all_matchdays
+     * @param bool  $hide_old Whether to hide past matchdays and append link.
      */
-    private function render_full_schedule_html( $schedule_id, $all_matchdays ) {
+    private function render_full_schedule_html( $schedule_id, $all_matchdays, $hide_old = false ) {
+        $today = current_time( 'Ymd' );
+        $shown_matchdays = [];
+        $had_hidden = false;
+
+        foreach ( $all_matchdays as $matchday ) {
+            $date = $matchday['match_date'] ?? '';
+            if ( $hide_old && $date && $date < $today ) {
+                $had_hidden = true;
+                continue;
+            }
+            $shown_matchdays[] = $matchday;
+        }
+
+        if ( empty( $shown_matchdays ) ) {
+            return ''; // nothing to render
+        }
+
         ob_start();
         ?>
         <section class="aoso-schedule" aria-labelledby="aoso-schedule-title-<?php echo esc_attr( $schedule_id ); ?>">
@@ -218,10 +243,16 @@ final class AOSO_Teams_Schedule {
             </header>
 
             <div class="aoso-schedule__matchdays-wrapper">
-                <?php foreach ( $all_matchdays as $index => $matchday ) : ?>
+                <?php foreach ( $shown_matchdays as $index => $matchday ) : ?>
                     <?php echo $this->render_single_matchday_block( $matchday, $index + 1 ); ?>
                 <?php endforeach; ?>
             </div>
+
+            <?php if ( $hide_old && $had_hidden ) : ?>
+                <div class="aoso-schedule__view-full">
+                    <a href="<?php echo esc_url( get_permalink( $schedule_id ) ); ?>" class="in-page-button">View Past Matches</a>
+                </div>
+            <?php endif; ?>
         </section>
         <?php
         return (string) ob_get_clean();

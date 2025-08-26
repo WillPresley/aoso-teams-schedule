@@ -107,11 +107,12 @@ body.single-aoso_schedule {
     }
 }
 
-article.aoso_schedule {
-    .aoso-schedule__header {
-        display: none;
-    }
-}
+// Hide schedule header (title + description) on single schedule pages
+// article.aoso_schedule {
+//     .aoso-schedule__header {
+//         display: none;
+//     }
+// }
 
 .aoso-schedule {
     --gap: 0.25rem;
@@ -129,14 +130,13 @@ article.aoso_schedule {
 }
 
 .aoso-schedule__header {
-    display: flex;
-    gap: 1rem;
-    align-items: baseline;
+    // display: flex;
+    display: none;
+    // gap: 1rem;
+    // align-items: baseline;
 
-    padding-block: 0.5rem;
-    padding-inline: 0.75rem;
-
-    // background: #f1f5f9;
+    // padding-block: 0.5rem;
+    // padding-inline: 0.75rem;
 }
 
 .aoso-schedule__title {
@@ -317,6 +317,11 @@ article.aoso_schedule {
             display: none;
         }
     }
+}
+
+.aoso-schedule__view-full {
+    margin-block-start: 1.5rem;
+    text-align: center;
 }
 
 @media (min-width: 540px) {
