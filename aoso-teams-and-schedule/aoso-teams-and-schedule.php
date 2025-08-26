@@ -124,12 +124,14 @@ final class AOSO_Teams_Schedule {
 
     /*--------------------------------------------------------------------------
      * Assets & ACF Fields
-     * (Unchanged)
      *------------------------------------------------------------------------*/
     public function enqueue_assets() {
         $css_path = plugin_dir_url( __FILE__ ) . 'assets/css/aoso-teams-schedule.min.css';
-        wp_register_style( 'aoso-teams-schedule', $css_path, [], self::VERSION, 'all' );
+        $css_file = plugin_dir_path( __FILE__ ) . 'assets/css/aoso-teams-schedule.min.css';
+        $css_mtime = file_exists( $css_file ) ? filemtime( $css_file ) : self::VERSION;
+        wp_register_style( 'aoso-teams-schedule', $css_path, [], $css_mtime, 'all' );
     }
+
     public function register_acf_groups() {
         if ( ! function_exists( 'acf_add_local_field_group' ) ) { return; }
         acf_add_local_field_group( [ 'key' => 'group_aoso_team_fields', 'title' => 'Team Details', 'fields' => [ [ 'key' => 'field_aoso_team_bg', 'label' => 'Background Color', 'name' => 'aoso_team_bg', 'type' => 'color_picker', 'return_format' => 'string', ], [ 'key' => 'field_aoso_team_text', 'label' => 'Text Color', 'name' => 'aoso_team_text', 'type' => 'color_picker', 'return_format' => 'string', ], [ 'key' => 'field_aoso_team_logo', 'label' => 'Logo (SVG/PNG)', 'name' => 'aoso_team_logo', 'type' => 'image', 'return_format' => 'array', 'library' => 'all', 'mime_types' => 'svg,png', 'preview_size' => 'medium', ], ], 'location' => [ [ [ 'param' => 'post_type', 'operator' => '==', 'value' => 'aoso_team', ], ], ], ] );
