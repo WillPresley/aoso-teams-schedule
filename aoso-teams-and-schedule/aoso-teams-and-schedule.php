@@ -216,22 +216,9 @@ final class AOSO_Teams_Schedule {
      * @param bool  $hide_old Whether to hide past matchdays and append link.
      */
     private function render_full_schedule_html( $schedule_id, $all_matchdays, $hide_old = false ) {
-        $today = current_time( 'Ymd' );
-        $shown_matchdays = [];
-        $had_hidden = false;
-
-        foreach ( $all_matchdays as $matchday ) {
-            $date = $matchday['match_date'] ?? '';
-            if ( $hide_old && $date && $date < $today ) {
-                $had_hidden = true;
-                continue;
-            }
-            $shown_matchdays[] = $matchday;
-        }
-
-        if ( empty( $shown_matchdays ) ) {
-            return ''; // nothing to render
-        }
+        $today       = current_time( 'Ymd' );
+        $had_hidden  = false;
+        $rendered_any = false;
 
         ob_start();
         ?>
@@ -243,9 +230,30 @@ final class AOSO_Teams_Schedule {
             </header>
 
             <div class="aoso-schedule__matchdays-wrapper">
-                <?php foreach ( $shown_matchdays as $index => $matchday ) : ?>
-                    <?php echo $this->render_single_matchday_block( $matchday, $index + 1 ); ?>
-                <?php endforeach; ?>
+                <?php
+                $week_counter = 0; // counts ONLY playing weeks, across ALL rows (keeps continuity)
+
+                foreach ( $all_matchdays as $matchday ) {
+                    $date        = $matchday['match_date'] ?? '';
+                    $is_no_match = ! empty( $matchday['no_match'] );
+
+                    // Increment the global counter only for actual playing weeks.
+                    if ( ! $is_no_match ) {
+                        $week_counter++;
+                    }
+
+                    // Decide if this row should be hidden due to date (but still counted above).
+                    $should_hide = $hide_old && $date && $date < $today;
+                    if ( $should_hide ) {
+                        $had_hidden = true;
+                        continue;
+                    }
+
+                    // Render this row with the correct running "Matchday #"
+                    echo $this->render_single_matchday_block( $matchday, $week_counter );
+                    $rendered_any = true;
+                }
+                ?>
             </div>
 
             <?php if ( $hide_old && $had_hidden ) : ?>
@@ -255,7 +263,14 @@ final class AOSO_Teams_Schedule {
             <?php endif; ?>
         </section>
         <?php
-        return (string) ob_get_clean();
+        $out = (string) ob_get_clean();
+
+        // If nothing was rendered (e.g., all were hidden), keep prior behavior of returning empty.
+        if ( ! $rendered_any ) {
+            return '';
+        }
+
+        return $out;
     }
 
     /**
@@ -271,7 +286,12 @@ final class AOSO_Teams_Schedule {
                 <?php if ( $date_out ) :
                     $date_text = esc_html( $date_out );
                 endif; ?>
-                <h3 class="aoso-matchday__title"><span class="aoso-matchday__title-date"><?php echo $date_text; ?></span> <span class="aoso-matchday__title-label">(Matchday #<?php echo esc_html( $week_number ); ?>)</span></h3>
+                <h3 class="aoso-matchday__title">
+                    <span class="aoso-matchday__title-date"><?php echo $date_text; ?></span>
+                    <?php if ( empty( $matchday['no_match'] ) ) : ?>
+                        <span class="aoso-matchday__title-label">(Matchday #<?php echo esc_html( $week_number ); ?>)</span>
+                    <?php endif; ?>
+                </h3>
             </header>
 
             <?php
