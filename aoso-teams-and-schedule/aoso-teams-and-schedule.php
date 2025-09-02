@@ -323,7 +323,7 @@ final class AOSO_Teams_Schedule {
                                     <span class="aoso-schedule__field-name"><?php echo esc_html( $field_name ); ?></span>
                                     <span class="aoso-schedule__hoa-wrap" aria-hidden="true">
                                         <span class="aoso-schedule__hoa aoso-schedule__hoa--home">Home</span>
-                                        <span class="aoso-schedule__hoa aoso-schedule__hoa--vs">vs</span>
+                                        <span class="aoso-schedule__hoa aoso-schedule__hoa--vs">v</span>
                                         <span class="aoso-schedule__hoa aoso-schedule__hoa--away">Away</span>
                                     </span>
                                 </div>
@@ -390,7 +390,7 @@ final class AOSO_Teams_Schedule {
                 <div class="aoso-team aoso-team--home" style="<?php echo esc_attr( $home['style'] ); ?>">
                     <?php echo $home['html']; ?>
                 </div>
-                <div class="aoso-vs" aria-hidden="true">vs</div>
+                <div class="aoso-vs" aria-hidden="true">v</div>
                 <div class="aoso-team aoso-team--away" style="<?php echo esc_attr( $away['style'] ); ?>">
                     <?php echo $away['html']; ?>
                 </div>

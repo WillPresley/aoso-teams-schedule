@@ -154,7 +154,7 @@ body.single-aoso_schedule {
 .aoso-schedule__grid-head,
 .aoso-schedule__grid-body > .aoso-schedule__row {
     display: grid;
-    grid-template-columns: 1.5rem repeat(3, 30%); /* Time + 3 fields by default; grid still works if you add/remove columns */
+    grid-template-columns: 0.5rem repeat(3, 33.3333%); /* Time + 3 fields by default; grid still works if you add/remove columns */
     gap: var(--gap);
 }
 
@@ -172,9 +172,10 @@ body.single-aoso_schedule {
 
 .aoso-schedule__cell--time,
 .aoso-schedule__cell--time-key {
+    margin-inline-start: -1rem;
     // background: #f8fafc;
     font-size: 0.7rem;
-    text-align: center;
+    text-align: end;
 }
 
 .aoso-schedule__cell--time {
@@ -226,7 +227,7 @@ body.single-aoso_schedule {
 
 .aoso-match {
     display: grid;
-    grid-template-columns: 44% auto 44%;
+    grid-template-columns: 47.5% auto 47.5%;
     align-items: stretch;
     block-size: 100%;
 }
@@ -345,6 +346,10 @@ body.single-aoso_schedule {
         font-size: 0.75rem;
     }
 
+    .aoso-match {
+        grid-template-columns: 44% auto 44%;
+    }
+
     .aoso-vs {
         padding-inline: 0.2rem;
         font-size: 0.75rem;
@@ -363,6 +368,11 @@ body.single-aoso_schedule {
     .aoso-schedule__cell--time-key,
     .aoso-vs {
         font-size: 1rem;
+    }
+
+    .aoso-schedule__cell--time,
+    .aoso-schedule__cell--time-key {
+        margin-inline-start: unset;
     }
 
     .aoso-schedule__grid-head,
