@@ -101,11 +101,11 @@ $default-max-bp: 900px;
 STYLES
 *********************/
 
-body.single-aoso_schedule {
-    .standard-wrap {
-        inline-size: 98vw;
-    }
-}
+// body.single-aoso_schedule {
+//     .standard-wrap {
+//         inline-size: 98vw;
+//     }
+// }
 
 // Hide schedule header (title + description) on single schedule pages
 // article.aoso_schedule {
@@ -195,6 +195,10 @@ body.single-aoso_schedule {
     // justify-content: space-between;
 }
 
+.aoso-schedule__field-name {
+    font-weight: 900;
+}
+
 .aoso-schedule__hoa-wrap {
     display: inline-block;
     line-height: 1;
@@ -235,12 +239,13 @@ body.single-aoso_schedule {
 .aoso-vs {
     display: grid;
     place-items: center;
-
     padding-block: 0;
     padding-inline: 0;
+}
 
+.aoso-vs-text {
+    display: inline-block;
     font-size: 0.65rem;
-
     opacity: $default-subtle-opacity;
 }
 
@@ -326,19 +331,23 @@ body.single-aoso_schedule {
 }
 
 @media (min-width: 540px) {
-    body.single-aoso_schedule {
-        .standard-wrap {
-            inline-size: 92vw;
-        }
-    }
+    // body.single-aoso_schedule {
+    //     .standard-wrap {
+    //         inline-size: 92vw;
+    //     }
+    // }
 
     .aoso-schedule {
         --gap: 0.75rem;
     }
 
+    .aoso-schedule__grid {
+        margin-block: var(--gap);
+    }
+
     .aoso-schedule__grid-head,
     .aoso-schedule__grid-body > .aoso-schedule__row {
-        grid-template-columns: 3rem repeat(3, 1fr);
+        grid-template-columns: 2rem repeat(3, 1fr);
     }
 
     .aoso-schedule__cell--time,
@@ -352,21 +361,24 @@ body.single-aoso_schedule {
 
     .aoso-vs {
         padding-inline: 0.2rem;
+    }
+
+    .aoso-vs-text {
         font-size: 0.75rem;
     }
 }
 
 @media (min-width: 900px) {
-    body.single-aoso_schedule {
-        .standard-wrap {
-            inline-size: 88vw;
-        }
-    }
+    // body.single-aoso_schedule {
+    //     .standard-wrap {
+    //         inline-size: 88vw;
+    //     }
+    // }
 
     .aoso-schedule__grid,
     .aoso-schedule__cell--time,
     .aoso-schedule__cell--time-key,
-    .aoso-vs {
+    .aoso-vs-text {
         font-size: 1rem;
     }
 

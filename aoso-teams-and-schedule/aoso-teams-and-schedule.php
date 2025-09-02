@@ -360,7 +360,8 @@ final class AOSO_Teams_Schedule {
                                     }
                                     $home_id = $match['home_team'] ?? 0;
                                     $away_id = $match['away_team'] ?? 0;
-                                    echo $this->render_match_cell( $home_id, $away_id );
+                                    $field_bg = isset( $field_block['field_bg'] ) ? $field_block['field_bg'] : '';
+                                    echo $this->render_match_cell( $home_id, $away_id, $field_bg );
                                     ?>
                                 <?php endforeach; ?>
                             </div>
@@ -380,7 +381,7 @@ final class AOSO_Teams_Schedule {
     /**
      * Render one cell containing the Home vs Away teams for a given field/time.
      */
-    private function render_match_cell( $home_id, $away_id ) {
+    private function render_match_cell( $home_id, $away_id, $field_bg = '' ) {
         $home = $this->format_team_bits( $home_id );
         $away = $this->format_team_bits( $away_id );
         ob_start();
@@ -390,7 +391,7 @@ final class AOSO_Teams_Schedule {
                 <div class="aoso-team aoso-team--home" style="<?php echo esc_attr( $home['style'] ); ?>">
                     <?php echo $home['html']; ?>
                 </div>
-                <div class="aoso-vs" aria-hidden="true">v</div>
+                <div class="aoso-vs" aria-hidden="true" style="<?php echo $field_bg ? 'background-color:' . esc_attr( $field_bg ) . ';' : ''; ?>"><span class="aoso-vs-text">v</span></div>
                 <div class="aoso-team aoso-team--away" style="<?php echo esc_attr( $away['style'] ); ?>">
                     <?php echo $away['html']; ?>
                 </div>
