@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  AOSO Teams and Schedule
  * Description:  Custom CPTs + ACF-powered builder for teams and matchday schedules with shortcode rendering.
- * Version:      0.3.0
+ * Version:      0.3.2
  * Author:       AOSO
  * License:      GPL-2.0-or-later
  *
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class AOSO_Teams_Schedule {
 
     /** Plugin constants (paths/urls). */
-    private const VERSION   = '0.3.0';
+    private const VERSION   = '0.3.2';
     private const SLUG      = 'aoso-teams-and-schedule';
 
     public static function init() {
@@ -59,6 +59,10 @@ final class AOSO_Teams_Schedule {
         // Prefill new Schedule builder with 3 fields × 2 times.
         add_filter( 'acf/load_value/name=aoso_matchdays', [ $this, 'prefill_matchdays' ], 10, 3 );
 
+        // Dynamically populate our standard Select fields with published Teams.
+        add_filter( 'acf/load_field/name=home_team', [ $this, 'populate_team_select_choices' ] );
+        add_filter( 'acf/load_field/name=away_team', [ $this, 'populate_team_select_choices' ] );
+
         // Shortcode for schedule rendering.
         add_shortcode( 'aoso_schedule', [ $this, 'shortcode_schedule' ] );
 
@@ -82,8 +86,39 @@ final class AOSO_Teams_Schedule {
     }
 
     /*--------------------------------------------------------------------------
+     * ACF Database Query & Field Population
+     *------------------------------------------------------------------------*/
+
+    /**
+     * Populate standard select fields with published Teams.
+     * This achieves the "Basic UI" speed while also filtering out drafts/private posts.
+     */
+    public function populate_team_select_choices( $field ) {
+        // Reset choices
+        $field['choices'] = [
+            '' => '- Select Team -'
+        ];
+
+        // Query only published teams
+        $teams = get_posts( [
+            'post_type'      => 'aoso_team',
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+            'orderby'        => 'title',
+            'order'          => 'ASC',
+        ] );
+
+        if ( $teams ) {
+            foreach ( $teams as $team ) {
+                $field['choices'][ $team->ID ] = $team->post_title;
+            }
+        }
+
+        return $field;
+    }
+
+    /*--------------------------------------------------------------------------
      * CPT: Team & Taxonomy: Tier
-     * (These sections are unchanged)
      *------------------------------------------------------------------------*/
     public function register_team_cpt() {
         $labels = [
@@ -104,10 +139,12 @@ final class AOSO_Teams_Schedule {
         ];
         register_post_type( 'aoso_team', [ 'labels' => $labels, 'public' => true, 'show_in_rest' => true, 'menu_icon' => 'dashicons-groups', 'supports' => [ 'title', 'thumbnail' ], 'has_archive' => false, 'rewrite' => [ 'slug' => 'team', 'with_front' => false ], ] );
     }
+
     public function register_tier_tax() {
         $labels = [ 'name' => _x( 'Tiers', 'taxonomy general name', 'aoso' ), 'singular_name' => _x( 'Tier', 'taxonomy singular name', 'aoso' ), 'search_items' => __( 'Search Tiers', 'aoso' ), 'all_items' => __( 'All Tiers', 'aoso' ), 'edit_item' => __( 'Edit Tier', 'aoso' ), 'update_item' => __( 'Update Tier', 'aoso' ), 'add_new_item' => __( 'Add New Tier', 'aoso' ), 'new_item_name' => __( 'New Tier Name', 'aoso' ), 'menu_name' => __( 'Tiers', 'aoso' ), ];
         register_taxonomy( 'aoso_tier', [ 'aoso_team' ], [ 'labels' => $labels, 'hierarchical' => false, 'show_in_rest' => true, 'show_admin_column' => true, 'rewrite' => [ 'slug' => 'tier', 'with_front' => false ], ] );
     }
+
     public function maybe_seed_tier_terms() {
         $defaults = [ 'Rec', 'Flex', 'Comp' ];
         foreach ( $defaults as $term ) { if ( ! term_exists( $term, 'aoso_tier' ) ) { wp_insert_term( $term, 'aoso_tier' ); } }
@@ -115,7 +152,6 @@ final class AOSO_Teams_Schedule {
 
     /*--------------------------------------------------------------------------
      * CPT: Schedule
-     * (Unchanged)
      *------------------------------------------------------------------------*/
     public function register_schedule_cpt() {
         $labels = [ 'name' => _x( 'Schedules', 'post type general name', 'aoso' ), 'singular_name' => _x( 'Schedule', 'post type singular name', 'aoso' ), 'menu_name' => _x( 'Schedules', 'admin menu', 'aoso' ), 'name_admin_bar' => _x( 'Schedule', 'add new on admin bar', 'aoso' ), 'add_new' => __( 'Add New', 'aoso' ), 'add_new_item' => __( 'Add New Schedule', 'aoso' ), 'new_item' => __( 'New Schedule', 'aoso' ), 'edit_item' => __( 'Edit Schedule', 'aoso' ), 'view_item' => __( 'View Schedule', 'aoso' ), 'all_items' => __( 'All Schedules', 'aoso' ), 'search_items' => __( 'Search Schedules', 'aoso' ), 'not_found' => __( 'No schedules found.', 'aoso' ), ];
@@ -135,8 +171,58 @@ final class AOSO_Teams_Schedule {
     public function register_acf_groups() {
         if ( ! function_exists( 'acf_add_local_field_group' ) ) { return; }
         acf_add_local_field_group( [ 'key' => 'group_aoso_team_fields', 'title' => 'Team Details', 'fields' => [ [ 'key' => 'field_aoso_team_bg', 'label' => 'Background Color', 'name' => 'aoso_team_bg', 'type' => 'color_picker', 'return_format' => 'string', ], [ 'key' => 'field_aoso_team_text', 'label' => 'Text Color', 'name' => 'aoso_team_text', 'type' => 'color_picker', 'return_format' => 'string', ], [ 'key' => 'field_aoso_team_logo', 'label' => 'Logo (SVG/PNG)', 'name' => 'aoso_team_logo', 'type' => 'image', 'return_format' => 'array', 'library' => 'all', 'mime_types' => 'svg,png', 'preview_size' => 'medium', ], ], 'location' => [ [ [ 'param' => 'post_type', 'operator' => '==', 'value' => 'aoso_team', ], ], ], ] );
-        acf_add_local_field_group( [ 'key' => 'group_aoso_schedule_fields', 'title' => 'Schedule Builder', 'fields' => [ [ 'key' => 'field_aoso_matchdays', 'label' => 'Matchdays', 'name' => 'aoso_matchdays', 'type' => 'repeater', 'layout' => 'row', 'button_label' => 'Add Matchday', 'sub_fields' => [ [ 'key' => 'field_aoso_no_match', 'label' => 'No match this week', 'name' => 'no_match', 'type' => 'true_false', 'ui' => 1, 'ui_on_text' => 'Yes', 'ui_off_text' => 'No', ], [ 'key' => 'field_aoso_no_match_message', 'label' => 'Custom Message', 'name' => 'no_match_message', 'type' => 'text', 'placeholder' => 'No matches scheduled this week.', 'conditional_logic' => [ [ [ 'field' => 'field_aoso_no_match', 'operator' => '==', 'value' => '1', ], ], ], ], [ 'key' => 'field_aoso_match_date', 'label' => 'Matchday Date', 'name' => 'match_date', 'type' => 'date_picker', 'display_format' => 'F j, Y', 'return_format' => 'Ymd', 'first_day' => 0, 'required' => 0, ], [ 'key' => 'field_aoso_md_fields', 'label' => 'Fields', 'name' => 'fields', 'type' => 'repeater', 'layout' => 'row', 'min' => 3, 'max' => 3, 'button_label' => 'Add Field', 'conditional_logic' => [ [ [ 'field' => 'field_aoso_no_match', 'operator' => '!=', 'value' => '1', ], ], ], 'sub_fields' => [ [ 'key' => 'field_aoso_md_field_name', 'label' => 'Field Name', 'name' => 'field_name', 'type' => 'text', ], [ 'key' => 'field_aoso_md_field_bg', 'label' => 'Field BG Color', 'name' => 'field_bg', 'type' => 'color_picker', 'return_format' => 'string', ], [ 'key' => 'field_aoso_md_times', 'label' => 'Times', 'name' => 'times', 'type' => 'repeater', 'layout' => 'table', 'button_label' => 'Add Time', 'sub_fields' => [ [ 'key' => 'field_aoso_md_time_label', 'label' => 'Time', 'name' => 'time_label', 'type' => 'text', 'placeholder' => '9:00', ], [ 'key' => 'field_aoso_md_home_team', 'label' => 'Home Team', 'name' => 'home_team', 'type' => 'post_object', 'post_type' => [ 'aoso_team' ], 'return_format' => 'id', 'ui' => 1, 'allow_null' => 0, ], [ 'key' => 'field_aoso_md_away_team', 'label' => 'Away Team', 'name' => 'away_team', 'type' => 'post_object', 'post_type' => [ 'aoso_team' ], 'return_format' => 'id', 'ui' => 1, 'allow_null' => 0, ], ], ], ], ], ], ], ], 'location' => [ [ [ 'param' => 'post_type', 'operator' => '==', 'value' => 'aoso_schedule', ], ], ], ] );
+
+        acf_add_local_field_group( [
+            'key' => 'group_aoso_schedule_fields',
+            'title' => 'Schedule Builder',
+            'fields' => [
+                [
+                    'key' => 'field_aoso_matchdays',
+                    'label' => 'Matchdays',
+                    'name' => 'aoso_matchdays',
+                    'type' => 'repeater',
+                    'layout' => 'row',
+                    'button_label' => 'Add Matchday',
+                    'sub_fields' => [
+                        [ 'key' => 'field_aoso_no_match', 'label' => 'No match this week', 'name' => 'no_match', 'type' => 'true_false', 'ui' => 1, 'ui_on_text' => 'Yes', 'ui_off_text' => 'No', ],
+                        [ 'key' => 'field_aoso_no_match_message', 'label' => 'Custom Message', 'name' => 'no_match_message', 'type' => 'text', 'placeholder' => 'No matches scheduled this week.', 'conditional_logic' => [ [ [ 'field' => 'field_aoso_no_match', 'operator' => '==', 'value' => '1', ], ], ], ],
+                        [ 'key' => 'field_aoso_match_date', 'label' => 'Matchday Date', 'name' => 'match_date', 'type' => 'date_picker', 'display_format' => 'F j, Y', 'return_format' => 'Ymd', 'first_day' => 0, 'required' => 0, ],
+                        [
+                            'key' => 'field_aoso_md_fields',
+                            'label' => 'Fields',
+                            'name' => 'fields',
+                            'type' => 'repeater',
+                            'layout' => 'row',
+                            'min' => 3,
+                            'max' => 3,
+                            'button_label' => 'Add Field',
+                            'conditional_logic' => [ [ [ 'field' => 'field_aoso_no_match', 'operator' => '!=', 'value' => '1', ], ], ],
+                            'sub_fields' => [
+                                [ 'key' => 'field_aoso_md_field_name', 'label' => 'Field Name', 'name' => 'field_name', 'type' => 'text', ],
+                                [ 'key' => 'field_aoso_md_field_bg', 'label' => 'Field BG Color', 'name' => 'field_bg', 'type' => 'color_picker', 'return_format' => 'string', ],
+                                [
+                                    'key' => 'field_aoso_md_times',
+                                    'label' => 'Times',
+                                    'name' => 'times',
+                                    'type' => 'repeater',
+                                    'layout' => 'table',
+                                    'button_label' => 'Add Time',
+                                    'sub_fields' => [
+                                        [ 'key' => 'field_aoso_md_time_label', 'label' => 'Time', 'name' => 'time_label', 'type' => 'text', 'placeholder' => '9:00', ],
+                                        // Changed type to 'select' to respect the ui flag
+                                        [ 'key' => 'field_aoso_md_home_team', 'label' => 'Home Team', 'name' => 'home_team', 'type' => 'select', 'return_format' => 'value', 'ui' => 0, 'allow_null' => 0, ],
+                                        [ 'key' => 'field_aoso_md_away_team', 'label' => 'Away Team', 'name' => 'away_team', 'type' => 'select', 'return_format' => 'value', 'ui' => 0, 'allow_null' => 0, ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'location' => [ [ [ 'param' => 'post_type', 'operator' => '==', 'value' => 'aoso_schedule', ], ], ],
+        ] );
     }
+
     public function prefill_matchdays( $value, $post_id, $field ) {
         if ( ! empty( $value ) ) { return $value; }
         $field_defaults = [ [ 'name' => 'Field 1', 'bg' => '#f4cccc' ], [ 'name' => 'Field 2', 'bg' => '#d9d2e9' ], [ 'name' => 'Field 3', 'bg' => '#cfe1f3' ], ];
@@ -144,6 +230,7 @@ final class AOSO_Teams_Schedule {
         foreach ( $field_defaults as $def ) { $fields[] = [ 'field_name' => $def['name'], 'field_bg' => $def['bg'], 'times' => [ [ 'time_label' => '9:00', 'home_team' => '', 'away_team' => '' ], [ 'time_label' => '10:30', 'home_team' => '', 'away_team' => '' ], ], ]; }
         return [ [ 'no_match' => 0, 'no_match_message' => '', 'match_date' => '', 'fields' => $fields, ], ];
     }
+
     private function human_date_from_ymd( $ymd ) {
         if ( ! $ymd ) { return ''; }
         return date_i18n( 'F j, Y', strtotime( $ymd ) );
